@@ -51,7 +51,7 @@ class CodeRunRequest(BaseModel):
 class CodeReviewRequest(BaseModel):
     code: str
     language: Optional[str] = "python"
-    mode: Optional[str] = "hybrid" # Support frontend 'mode' parameter
+    mode: Optional[str] = "hybrid"  # Support frontend 'mode' parameter
 
 # Routes
 @app.get("/")
@@ -63,11 +63,11 @@ async def health():
     return {"status": "healthy", "service": "Enterprise AI Code Reviewer"}
 
 @app.post("/run-code")
-@app.post("/api/run-code") # Support both direct and prefixed calls
+@app.post("/api/run-code")  # Support both direct and prefixed calls
 async def run_code(request: CodeRunRequest):
     """
     Safely runs Python code and captures stdout/stderr.
-    Note: In a production environment, use a sandboxed execution environment (e.g., Docker, PyExecJS).
+    Note: In a production environment, use a sandboxed execution environment.
     """
     logger.info("Executing Python code snippet")
     output_buffer = io.StringIO()
@@ -80,13 +80,11 @@ async def run_code(request: CodeRunRequest):
     sys.stderr = error_buffer
     
     try:
-        # Execute the code in a restricted global scope
         exec_globals = {"__builtins__": __builtins__}
         exec(request.code, exec_globals)
     except Exception as e:
         print(f"Runtime Error: {str(e)}", file=sys.stderr)
     finally:
-        # Restore stdout and stderr
         sys.stdout = old_stdout
         sys.stderr = old_stderr
     
@@ -96,20 +94,17 @@ async def run_code(request: CodeRunRequest):
     }
 
 @app.post("/review-code")
-@app.post("/api/analyze") # Support frontend call to /api/analyze
+@app.post("/api/analyze")  # Support frontend call to /api/analyze
 async def review_code(request: CodeReviewRequest):
     """
-    Calls Cohere API to generate a comprehensive AI code review.
+    Calls Cohere Chat API to generate a comprehensive AI code review.
     """
     logger.info(f"Generating review for {request.language} code")
     
     prompt = f"""
-    You are an expert software architect and security auditor.
-    Review the following {request.language} code:
-    
-    ```
-    {request.code}
-    ```
+You are an expert software architect and security auditor.
+Review the following {request.language} code:
+
     
     Provide a detailed AI code review in Markdown format including:
     1. **Code Summary**: A high-level explanation of the code's purpose.
