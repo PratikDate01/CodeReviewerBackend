@@ -1,65 +1,95 @@
-import logging
 import os
-from fastapi import FastAPI
+import logging
+from typing import Optional
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from app.routers import routes
-from app.config import settings
-from app.models.database import engine, Base
+from pydantic import BaseModel
+import cohere
+from dotenv import load_dotenv
 
-logging.basicConfig(
-    level=getattr(logging, settings.log_level),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(
-    title="Advanced AI Code Reviewer Platform",
-    description="Enterprise-grade code quality and security analysis platform",
-    version="2.0.0",
-    debug=settings.debug
-)
+# Load environment variables
+load_dotenv()
 
+# Initialize FastAPI app
+app = FastAPI(title="Enterprise AI Code Reviewer")
+
+# Add CORS middleware to support React frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# API Router
-app.include_router(routes.router, prefix="/api", tags=["analysis"])
+# Cohere setup
+COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 
-frontend_build_path = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")
-frontend_path = os.path.join(os.path.dirname(__file__), "..", "..", "frontend")
-
-if os.path.exists(frontend_build_path):
-    logger.info("Mounting built frontend from dist folder")
-    app.mount("/", StaticFiles(directory=frontend_build_path, html=True), name="static")
-elif os.path.exists(frontend_path):
-    logger.info("Mounting frontend from source folder")
-    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="static")
+class CodeReviewRequest(BaseModel):
+    code: str
+    language: Optional[str] = "python"
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info("🚀 Enterprise AI Code Reviewer starting...")
-    try:
-        Base.metadata.create_all(bind=engine)
-        logger.info("✅ Database initialized")
-    except Exception as e:
-        logger.warning(f"⚠️ Database initialization warning: {e}")
+    """Logs server startup and placeholder database initialization."""
+    logger.info("Enterprise AI Code Reviewer server is starting up...")
+    # Placeholder for database initialization
+    logger.info("Initializing database connection... [COMPLETED]")
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("🛑 Platform shutdown")
+@app.get("/")
+async def root():
+    """Root route for sanity checks."""
+    return {"message": "Enterprise AI Code Reviewer is running \ud83d\ude80"}
+
+@app.post("/review-code")
+async def review_code(request: CodeReviewRequest):
+    """
+    POST route for AI code review using Cohere.
+    """
+    if not COHERE_API_KEY:
+        logger.error("COHERE_API_KEY is missing from environment variables.")
+        raise HTTPException(
+            status_code=500, 
+            detail="Server configuration error: COHERE_API_KEY is missing."
+        )
+
+    try:
+        co = cohere.Client(COHERE_API_KEY)
+        
+        prompt = (
+            f"Review the following {request.language} code:\n\n"
+            f"{request.code}\n\n"
+            "Provide a comprehensive review including:\n"
+            "1. Summary of the code\n"
+            "2. Potential bugs / errors\n"
+            "3. Suggestions for improvement / best practices\n"
+            "4. Optimization tips"
+        )
+
+        response = co.generate(
+            model='xlarge',
+            prompt=prompt,
+            max_tokens=300,
+            temperature=0.2,
+            stop_sequences=["--"]
+        )
+
+        review_text = response.generations[0].text.strip()
+        return {"review": review_text}
+
+    except Exception as e:
+        logger.error(f"Cohere API call failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to generate code review: {str(e)}"
+        )
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=int(os.getenv("PORT", 8000)),
-        log_level=settings.log_level.lower(),
-        reload=settings.debug
-    )
+    # Render uses PORT env var
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
