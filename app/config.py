@@ -5,6 +5,10 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     cohere_api_key: str = os.getenv("COHERE_API_KEY", "")
+    cohere_api_keys: list = [
+        os.getenv("COHERE_API_KEY_1", ""),
+        os.getenv("COHERE_API_KEY_2", "")
+    ]
     max_code_length: int = 50000
     
     database_url: str = os.getenv("DATABASE_URL", "sqlite:///./reviews.db")

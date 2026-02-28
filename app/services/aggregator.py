@@ -35,7 +35,7 @@ class ReviewAggregator:
         # 3. AI Engine (pluggable)
         ai_data = {}
         if mode in ("ai", "hybrid", "advanced"):
-            ai_data = self.ai_engine.review(code)
+            ai_data = self.ai_engine.review(code, mode)
             
         # 4. Scoring Engine
         loc = complexity_data["lines_of_code"]

@@ -31,8 +31,8 @@ app.add_middleware(
 # API Router
 app.include_router(routes.router, prefix="/api", tags=["analysis"])
 
-frontend_build_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
-frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
+frontend_build_path = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")
+frontend_path = os.path.join(os.path.dirname(__file__), "..", "..", "frontend")
 
 if os.path.exists(frontend_build_path):
     logger.info("Mounting built frontend from dist folder")
