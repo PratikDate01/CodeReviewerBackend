@@ -41,14 +41,15 @@ class StaticAnalysisEngine:
         
     def _get_pylint_score(self) -> float:
         """Calculate pylint score for the code."""
-        temp_file = "temp_code_static.py"
+        import tempfile
+        temp_fd, temp_path = tempfile.mkstemp(suffix=".py", prefix="linter_")
         try:
-            with open(temp_file, "w") as f:
+            with os.fdopen(temp_fd, "w") as f:
                 f.write(self.code)
             
             stdout = io.StringIO()
             # Minimalistic linting for faster response
-            options = ["--disable=all", "--enable=E,W,R,C", temp_file]
+            options = ["--disable=all", "--enable=E,W,R,C", temp_path]
             lint.Run(options, exit=False, reporter=JSONReporter(stdout))
             
             report = json.loads(stdout.getvalue() or "[]")
@@ -59,8 +60,11 @@ class StaticAnalysisEngine:
             logger.warning(f"Could not get pylint score: {e}")
             return 7.0
         finally:
-            if os.path.exists(temp_file):
-                os.remove(temp_file)
+            try:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+            except Exception as e:
+                logger.error(f"Error removing temp file {temp_path}: {e}")
 
     def _find_unused_variables(self) -> List[str]:
         if not self.tree: return []
